@@ -1,13 +1,15 @@
-const AIRTABLE_API_KEY = process.env.AIRTABLE_TOKEN;
-const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID;
+function getRequiredEnv(name: string): string {
+  const value = process.env[name];
 
-if (!AIRTABLE_API_KEY) {
-  throw new Error("Missing AIRTABLE_API_KEY in .env.local");
+  if (!value) {
+    throw new Error(`Missing ${name} in .env.local`);
+  }
+
+  return value;
 }
 
-if (!AIRTABLE_BASE_ID) {
-  throw new Error("Missing AIRTABLE_BASE_ID in .env.local");
-}
+const AIRTABLE_API_KEY = getRequiredEnv("AIRTABLE_TOKEN");
+const AIRTABLE_BASE_ID = getRequiredEnv("AIRTABLE_BASE_ID");
 
 export type AirtableRecord<TFields> = {
   id: string;
