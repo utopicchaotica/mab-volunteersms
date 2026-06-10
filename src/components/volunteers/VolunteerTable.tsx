@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { Fragment, useEffect, useMemo, useState, useTransition } from "react";
 import type { RoleAssignmentOption, VolunteerAssignment } from "@/types/volunteers";
+// import { addCircleButtonClassName } from "@/components/volunteers/buttonClassNames";
+import { getAddCircleButtonClassName } from "@/components/volunteers/buttonClassNames";
 
 type VolunteerSortKey = "volunteerName" | "role" | "confirmed" | "notes";
 
@@ -13,6 +15,7 @@ type VolunteerTableProps = {
   interactiveOptions?: {
     usePointerCursor?: boolean;
   };
+  isAdmin?: boolean;
 };
 
 export function VolunteerTable({
@@ -22,6 +25,7 @@ export function VolunteerTable({
   interactiveOptions = {
     usePointerCursor: true,
   },
+  isAdmin = false,
 }: VolunteerTableProps) {
   const router = useRouter();
 
@@ -291,6 +295,7 @@ export function VolunteerTable({
                 onSort={handleSort}
                 className="w-[28%]"
               />
+            {isAdmin && (
               <th className="w-[8%] px-3 py-2 text-center">
                 <div className="flex justify-center">
                   <span
@@ -302,6 +307,7 @@ export function VolunteerTable({
                   </span>
                 </div>
               </th>
+            )}
             </tr>
           </thead>
 
@@ -310,7 +316,7 @@ export function VolunteerTable({
               <Fragment key={group.role}>
                 <tr key={`${group.role}-heading`} className="bg-neutral-950/80">
                   <td
-                    colSpan={5}
+                    colSpan={isAdmin ? 5 : 4}
                     className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-neutral-400"
                   >
                     {group.role}
@@ -322,6 +328,7 @@ export function VolunteerTable({
                     <td className="px-3 py-2">{volunteer.volunteerName}</td>
 
                     <td className="px-3 py-2 text-neutral-300">
+                    {isAdmin ? (
                       <select
                         value={volunteer.assignmentId}
                         onChange={(event) =>
@@ -337,10 +344,14 @@ export function VolunteerTable({
                           </option>
                         ))}
                       </select>
+                    ) : (
+                      <span className="text-neutral-300">{volunteer.role}</span>
+                    )}
                     </td>
 
                     <td className="px-3 py-2">
                       <div className="flex justify-center">
+                      {isAdmin ? (
                         <input
                           type="checkbox"
                           checked={volunteer.confirmed}
@@ -355,13 +366,18 @@ export function VolunteerTable({
                           ].join(" ")}
                           aria-label={`${volunteer.volunteerName} confirmed status`}
                         />
+                      ) : (
+                        <span aria-label={volunteer.confirmed ? "Confirmed" : "Not confirmed"}>
+                          {volunteer.confirmed ? "✅" : "—"}
+                        </span>
+                      )}
                       </div>
                     </td>
 
                     <td className="whitespace-normal break-words px-3 py-2 text-neutral-400">
                       {volunteer.notes || "—"}
                     </td>
-
+                  {isAdmin && (
                     <td className="px-3 py-2">
                       <div className="flex justify-center">
                         <button
@@ -380,6 +396,7 @@ export function VolunteerTable({
                         </button>
                       </div>
                     </td>
+                  )}
                   </tr>
                 ))}
               </Fragment>
@@ -394,21 +411,24 @@ export function VolunteerTable({
         </p>
       )}
 
+      {isAdmin && (
       <div className="flex justify-center">
         <button
           type="button"
           onClick={onAddVolunteer}
           // className="flex h-5 w-5 items-center justify-center rounded-full bg-green-600 text-xl font-semibold leading-none text-white shadow-sm transition hover:bg-green-500 cursor-pointer focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-offset-2 focus:ring-offset-neutral-900"
-          className={[
+          /* className={[
             "flex h-5 w-5 items-center justify-center rounded-full bg-green-600 text-xl font-semibold leading-none text-white shadow-sm transition hover:bg-green-500 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-offset-2 focus:ring-offset-neutral-900",
             interactiveStateClassName,
-          ].join(" ")}
+          ].join(" ")} */
+          className={getAddCircleButtonClassName(interactiveOptions)}
           aria-label="Add volunteer"
           title="Add volunteer"
         >
           +
         </button>
       </div>
+      )}
     </div>
   );
 }

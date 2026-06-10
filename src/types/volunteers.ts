@@ -28,6 +28,11 @@ export type VolunteerEventShift = {
 
   timeBlock: TimeBlock;
 
+  staff: StaffAssignment[];
+  staffNotes?: string;
+  availableStaff: StaffOption[];
+  staffScheduleOptions: StaffScheduleOption[];
+
   volunteers: VolunteerAssignment[];
 
   availableVolunteers: VolunteerOption[];
@@ -53,4 +58,31 @@ export type FestivalDay = {
   dateLabel: string;
   shortLabel: string;
   dayNumber: number;
+};
+
+export type StaffRole = "FOH" | "Production";
+
+export type StaffOption = {
+  id: string;
+  name: string;
+};
+
+export type StaffScheduleOption = {
+  id: string;
+  label: string;
+  fohStaffIds: string[];
+  productionStaffIds: string[];
+};
+
+export type StaffAssignment = {
+  id: string;
+  staffScheduleId: string;
+  staffId: string;
+  staffName: string;
+  role: StaffRole;
+  position?: string;
+
+  // Placeholder for later, when staff shifts get explicit times.
+  // startTime?: string;
+  // endTime?: string;
 };

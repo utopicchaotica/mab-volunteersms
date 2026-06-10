@@ -1,16 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AddVolunteerDialog } from "@/components/volunteers/AddVolunteerDialog";
 import { VolunteerTable } from "@/components/volunteers/VolunteerTable";
 import type { VolunteerEventShift } from "@/types/volunteers";
+import { AddStaffDialog } from "@/components/volunteers/AddStaffDialog";
+import { StaffTable } from "@/components/volunteers/StaffTable";
 
 type EventShiftCardProps = {
   shift: VolunteerEventShift;
+  isAdmin?: boolean;
 };
 
-export function EventShiftCard({ shift }: EventShiftCardProps) {
+export function EventShiftCard({
+  shift,
+  isAdmin = false,
+}: EventShiftCardProps) {
+  //Volunteer dialog state
   const [isAddVolunteerOpen, setIsAddVolunteerOpen] = useState(false);
+
+  //Staff dialog state
+  const [isAddStaffOpen, setIsAddStaffOpen] = useState(false);
+  const [localStaff, setLocalStaff] = useState(shift.staff);
+  useEffect(() => {
+    setLocalStaff(shift.staff);
+  }, [shift.staff]);
 
   return (
     <article className="min-w-[560px] max-w-[680px] rounded-2xl border border-neutral-800 bg-neutral-900 p-4 shadow-lg">
@@ -32,14 +46,30 @@ export function EventShiftCard({ shift }: EventShiftCardProps) {
           </p>
         )}
       </section>
+      <StaffTable
+        staff={localStaff}
+        staffNotes={shift.staffNotes}
+        onAddStaff={isAdmin ? () => setIsAddStaffOpen(true) : undefined}
+        onStaffRemoved={
+          isAdmin
+            ? (staffAssignmentId) => {
+                setLocalStaff((currentStaff) =>
+                  currentStaff.filter(
+                    (staffMember) => staffMember.id !== staffAssignmentId
+                  )
+                );
+              }
+            : undefined
+        }
+        isAdmin={isAdmin}
+      />
 
       <VolunteerTable
         volunteers={shift.volunteers}
         roleAssignments={shift.roleAssignments}
-        onAddVolunteer={() => setIsAddVolunteerOpen(true)}
-        interactiveOptions={{
-          usePointerCursor: true,
-        }}
+        onAddVolunteer={isAdmin ? () => setIsAddVolunteerOpen(true) : undefined}
+        interactiveOptions={{ usePointerCursor: isAdmin }}
+        isAdmin={isAdmin}
       />
 
       {shift.shiftNotes && (
@@ -49,6 +79,28 @@ export function EventShiftCard({ shift }: EventShiftCardProps) {
         </section>
       )}
 
+    {isAdmin && (
+      <AddStaffDialog
+        isOpen={isAddStaffOpen}
+        onClose={() => setIsAddStaffOpen(false)}
+        availableStaff={shift.availableStaff}
+        staffScheduleOptions={shift.staffScheduleOptions}
+        onStaffAdded={(addedStaff) => {
+          setLocalStaff((currentStaff) => [
+            ...currentStaff,
+            {
+              id: `${addedStaff.staffScheduleId}-${addedStaff.staffId}-${addedStaff.role.toLowerCase()}`,
+              staffScheduleId: addedStaff.staffScheduleId,
+              staffId: addedStaff.staffId,
+              staffName: addedStaff.staffName,
+              role: addedStaff.role,
+              position: addedStaff.position,
+            },
+          ]);
+        }}
+      />
+    )}
+    {isAdmin && (
       <AddVolunteerDialog
         isOpen={isAddVolunteerOpen}
         onClose={() => setIsAddVolunteerOpen(false)}
@@ -56,6 +108,7 @@ export function EventShiftCard({ shift }: EventShiftCardProps) {
         availableVolunteers={shift.availableVolunteers}
         roleAssignments={shift.roleAssignments}
       />
+    )}
     </article>
   );
 }

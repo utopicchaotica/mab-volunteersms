@@ -8,11 +8,13 @@ import type { FestivalDay, VolunteerEventShift } from "@/types/volunteers";
 type DailyVolunteerScheduleProps = {
   days: FestivalDay[];
   shifts: VolunteerEventShift[];
+  isAdmin?: boolean;
 };
 
 export function DailyVolunteerSchedule({
   days,
   shifts,
+  isAdmin = false,
 }: DailyVolunteerScheduleProps) {
   const [selectedDate, setSelectedDate] = useState(days[0]?.date ?? "");
 
@@ -55,8 +57,17 @@ export function DailyVolunteerSchedule({
         />
       </header>
 
-      <ScheduleRow title="Afternoon Events" shifts={afternoonShifts} />
-      <ScheduleRow title="Evening Events" shifts={eveningShifts} />
+      <ScheduleRow
+        title="Afternoon Events"
+        shifts={afternoonShifts}
+        isAdmin={isAdmin}
+      />
+
+      <ScheduleRow
+        title="Evening Events"
+        shifts={eveningShifts}
+        isAdmin={isAdmin}
+      />
     </main>
   );
 }
@@ -64,9 +75,10 @@ export function DailyVolunteerSchedule({
 type ScheduleRowProps = {
   title: string;
   shifts: VolunteerEventShift[];
+  isAdmin: boolean;
 };
 
-function ScheduleRow({ title, shifts }: ScheduleRowProps) {
+function ScheduleRow({ title, shifts, isAdmin }: ScheduleRowProps) {
   return (
     <section className="mb-10">
       <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-neutral-400">
@@ -76,7 +88,11 @@ function ScheduleRow({ title, shifts }: ScheduleRowProps) {
       {shifts.length > 0 ? (
         <div className="flex gap-4 overflow-x-auto pb-3">
           {shifts.map((shift) => (
-            <EventShiftCard key={shift.id} shift={shift} />
+            <EventShiftCard
+              key={shift.id}
+              shift={shift}
+              isAdmin={isAdmin}
+            />
           ))}
         </div>
       ) : (

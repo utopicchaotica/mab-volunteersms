@@ -2,6 +2,9 @@ import { listAirtableRecords } from "@/lib/airtable/client";
 import { AIRTABLE_TABLES } from "@/lib/airtable/tables";
 import type {
   FestivalDay,
+  StaffAssignment,
+  StaffOption,
+  StaffScheduleOption,
   TimeBlock,
   VolunteerAssignment,
   VolunteerEventShift,
@@ -13,6 +16,7 @@ type AirtableShiftFields = {
   "Shift Name"?: string;
   "Display Name"?: string;
 
+  Event?: LinkedRecordIds;
   Venue?: string[] | string;
   EventCalDay?: string;
   EventName?: string;
@@ -46,6 +50,24 @@ type AirtableVolunteerFields = {
   Phone?: string;
   Notes?: string;
   "Shift Interest"?: LinkedRecordIds;
+};
+
+type AirtableStaffFields = {
+  Name?: string;
+};
+
+type AirtableStaffScheduleFields = {
+  Event?: LinkedRecordIds;
+
+  "FOH Staff"?: LinkedRecordIds;
+  "Production Staff"?: LinkedRecordIds;
+
+  staffPositionJSON?: string;
+  Notes?: string;
+
+  // Placeholder for later, when staff shifts get explicit times.
+  // "Start Datetime"?: string;
+  // "End Datetime"?: string;
 };
 
 const FESTIVAL_START = process.env.FESTIVAL_START;
@@ -92,29 +114,56 @@ function getLookupDisplayValue(value?: unknown): string | undefined {
   return undefined;
 }
 
+function parseStaffPositionJSON(value?: string): Record<string, string> {
+  if (!value?.trim()) {
+    return {};
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(value);
+
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return {};
+    }
+
+    const staffPositions: Record<string, string> = {};
+
+    for (const [staffId, position] of Object.entries(parsed)) {
+      if (typeof position === "string") {
+        staffPositions[staffId] = position;
+      }
+    }
+
+    return staffPositions;
+  } catch {
+    return {};
+  }
+}
+
 export async function getVolunteerScheduleData() {
-  const [shifts, assignments, volunteers] = await Promise.all([
-    listAirtableRecords<AirtableShiftFields>(AIRTABLE_TABLES.shifts!, {
-      filterByFormula: buildFestivalShiftFilterFormula(),
-      sort: [
-        {
-          field: "Start Datetime",
-          direction: "asc",
-        },
-      ],
-    }),
-    listAirtableRecords<AirtableAssignmentFields>(
-      AIRTABLE_TABLES.assignments!
-    ),
-    listAirtableRecords<AirtableVolunteerFields>(AIRTABLE_TABLES.volunteers!),
-  ]);
+  const [shifts, assignments, volunteers, staffRecords, staffSchedules] =
+    await Promise.all([
+      listAirtableRecords<AirtableShiftFields>(AIRTABLE_TABLES.shifts!, {
+        filterByFormula: buildFestivalShiftFilterFormula(),
+        sort: [
+          {
+            field: "Start Datetime",
+            direction: "asc",
+          },
+        ],
+      }),
+      listAirtableRecords<AirtableAssignmentFields>(
+        AIRTABLE_TABLES.assignments!
+      ),
+      listAirtableRecords<AirtableVolunteerFields>(AIRTABLE_TABLES.volunteers!),
+      listAirtableRecords<AirtableStaffFields>(AIRTABLE_TABLES.staff!),
+      listAirtableRecords<AirtableStaffScheduleFields>(
+        AIRTABLE_TABLES.staffSchedule!
+      ),
+    ]);
 
   const volunteerById = new Map(
     volunteers.map((volunteer) => [volunteer.id, volunteer])
-  );
-
-  const assignmentById = new Map(
-    assignments.map((assignment) => [assignment.id, assignment])
   );
 
   const assignmentsByShiftId = new Map<string, typeof assignments>();
@@ -126,6 +175,24 @@ export async function getVolunteerScheduleData() {
 
       existingAssignments.push(assignment);
       assignmentsByShiftId.set(shiftId, existingAssignments);
+    }
+  }
+
+  const staffById = new Map(
+    staffRecords.map((staffMember) => [staffMember.id, staffMember])
+  );
+
+  const staffSchedulesByEventId = new Map<string, typeof staffSchedules>();
+
+  for (const staffSchedule of staffSchedules) {
+    const linkedEventIds = staffSchedule.fields.Event ?? [];
+
+    for (const eventId of linkedEventIds) {
+      const existingStaffSchedules =
+        staffSchedulesByEventId.get(eventId) ?? [];
+
+      existingStaffSchedules.push(staffSchedule);
+      staffSchedulesByEventId.set(eventId, existingStaffSchedules);
     }
   }
 
@@ -233,6 +300,95 @@ export async function getVolunteerScheduleData() {
     const shiftEnd = shift.fields["End Datetime"];
     const eventStart = shift.fields["Event Start Datetime"];
 
+    const linkedEventIds = shift.fields.Event ?? [];
+
+    const shiftStaffSchedules = linkedEventIds.flatMap((eventId) => {
+      return staffSchedulesByEventId.get(eventId) ?? [];
+    });
+
+    const staffScheduleOptions: StaffScheduleOption[] = shiftStaffSchedules.map(
+      (staffSchedule) => {
+        return {
+          id: staffSchedule.id,
+          label: shift.fields.EventName ?? shift.fields["Display Name"] ?? "Staff schedule",
+          fohStaffIds: staffSchedule.fields["FOH Staff"] ?? [],
+          productionStaffIds: staffSchedule.fields["Production Staff"] ?? [],
+        };
+      }
+    );
+
+    const assignedStaffIds = new Set(
+      staffScheduleOptions.flatMap((staffSchedule) => [
+        ...staffSchedule.fohStaffIds,
+        ...staffSchedule.productionStaffIds,
+      ])
+    );
+
+    const availableStaff: StaffOption[] = staffRecords
+      .filter((staffMember) => !assignedStaffIds.has(staffMember.id))
+      .map((staffMember) => ({
+        id: staffMember.id,
+        name: staffMember.fields.Name ?? "Unnamed staff",
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    const staffForShift: StaffAssignment[] = shiftStaffSchedules.flatMap(
+      (staffSchedule) => {
+        // const notes = staffSchedule.fields.Notes;
+
+        const staffPositions = parseStaffPositionJSON(
+          staffSchedule.fields.staffPositionJSON
+        );
+
+        const fohStaffRows: StaffAssignment[] = (
+          staffSchedule.fields["FOH Staff"] ?? []
+        ).map((staffId) => {
+          const staffMember = staffById.get(staffId);
+
+          return {
+            id: `${staffSchedule.id}-${staffId}-foh`,
+            staffScheduleId: staffSchedule.id,
+            staffId,
+            staffName: staffMember?.fields.Name ?? "Unnamed staff",
+            role: "FOH",
+            position: staffPositions[staffId],
+            // notes,
+
+            // Placeholder for later, when staff shifts get explicit times.
+            // startTime: formatTimeLabel(staffSchedule.fields["Start Datetime"]),
+            // endTime: formatTimeLabel(staffSchedule.fields["End Datetime"]),
+          };
+        });
+
+        const productionStaffRows: StaffAssignment[] = (
+          staffSchedule.fields["Production Staff"] ?? []
+        ).map((staffId) => {
+          const staffMember = staffById.get(staffId);
+
+          return {
+            id: `${staffSchedule.id}-${staffId}-production`,
+            staffScheduleId: staffSchedule.id,
+            staffId,
+            staffName: staffMember?.fields.Name ?? "Unnamed staff",
+            role: "Production",
+            position: staffPositions[staffId],
+            // notes,
+
+            // Placeholder for later, when staff shifts get explicit times.
+            // startTime: formatTimeLabel(staffSchedule.fields["Start Datetime"]),
+            // endTime: formatTimeLabel(staffSchedule.fields["End Datetime"]),
+          };
+        });
+
+        return [...fohStaffRows, ...productionStaffRows];
+      }
+    );
+
+    const staffNotes = shiftStaffSchedules
+      .map((staffSchedule) => staffSchedule.fields.Notes)
+      .filter(Boolean)
+      .join("\n\n");
+
     return {
       id: shift.id,
 
@@ -257,8 +413,12 @@ export async function getVolunteerScheduleData() {
 
       timeBlock: inferTimeBlockFromDatetime(shiftStart),
 
-      volunteers: volunteersForShift,
+      staff: staffForShift,
+      availableStaff,
+      staffNotes,
+      staffScheduleOptions,
 
+      volunteers: volunteersForShift,
       availableVolunteers,
       roleAssignments,
     };
