@@ -128,26 +128,6 @@ export function AddVolunteerDialog({
         </header>
 
         <div className="space-y-4">
-          <label className="block">
-            <span className="mb-1 block text-sm font-medium text-neutral-300">
-              Role
-            </span>
-            <select
-              value={selectedAssignmentId}
-              onChange={(event) => {
-                setSelectedAssignmentId(event.target.value);
-                setSelectedVolunteerId("");
-              }}
-              className="w-full rounded-xl border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
-            >
-              {roleAssignments.map((assignment) => (
-                <option key={assignment.id} value={assignment.id}>
-                  {assignment.role}
-                </option>
-              ))}
-            </select>
-          </label>
-
           {/* <label className="block">
             <span className="mb-1 block text-sm font-medium text-neutral-300">
               Available volunteer
@@ -214,6 +194,26 @@ export function AddVolunteerDialog({
               {error}
             </p>
           )}
+
+          <label className="block">
+            <span className="mb-1 block text-sm font-medium text-neutral-300">
+              Role
+            </span>
+            <select
+              value={selectedAssignmentId}
+              onChange={(event) => {
+                setSelectedAssignmentId(event.target.value);
+                setSelectedVolunteerId("");
+              }}
+              className="w-full rounded-xl border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
+            >
+              {roleAssignments.map((assignment) => (
+                <option key={assignment.id} value={assignment.id}>
+                  {assignment.role}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
 
         <footer className="mt-6 flex justify-end gap-3">

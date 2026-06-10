@@ -220,9 +220,9 @@ export function StaffTable({
         <table className="w-full table-fixed text-left text-sm">
           <thead className="bg-neutral-950 text-xs uppercase text-neutral-400">
             <tr>
-              <th className="w-[32%] px-3 py-2">Staff</th>
-              <th className="w-[24%] px-3 py-2">Area</th>
-              <th className="w-[36%] px-3 py-2">Position</th>
+              <th className="w-[28%] px-3 py-2">Staff</th>
+              <th className="w-[36%] px-3 py-2">Area</th>
+              <th className="w-[28%] px-3 py-2">Position</th>
             {isAdmin && (
               <th className="w-[8%] px-3 py-2 text-center">
                 <div className="flex justify-center">
@@ -329,7 +329,7 @@ export function StaffTable({
         </tbody>
         </table>
       </div>
-      
+
       {/* Add Staff Button */}
       {onAddStaff && (
       <div className="mt-3 flex justify-center">
